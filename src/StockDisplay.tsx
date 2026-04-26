@@ -10,6 +10,18 @@ import {
 
 const INITIAL_CAPITAL = 1_000_000
 const TRADE_UNIT = 10_000
+const GAME_RULES = [
+  '开局资金为 1,000,000 元，目标是在 2019 Q1 到 2020 Q4 的季度流程里让总资产尽量增长。',
+  '每个季度分为两页：新闻页先看当季行业状态，股票页再进行实际买卖。',
+  '可交易板块共有 6 个：航空、酒店、医疗防护、云办公、游戏娱乐、电商。',
+  '交易按手进行，1 手 = 10,000 元；你可以用 -1手 / +1手 调整，也可以直接输入手数。',
+  '每个板块都支持普通买入卖出，以及半仓买、全仓买、半仓卖、全仓卖。',
+  '半仓买 / 全仓买基于当前现金；半仓卖 / 全仓卖基于当前板块持仓市值。',
+  '现金不足时不能买入，持仓不足时不能卖出，最小交易单位始终是 1 手。',
+  '总资产 = 现金 + 当前持仓市值；累计盈亏 = 总资产 - 1,000,000。',
+  '切换季度或周数后，图表、当前点位和总资产会同步变化，最近操作会保留在交易记录里。',
+  '点击重置资金后，现金、持仓和交易记录都会恢复到初始状态。',
+] as const
 
 const createEmptyUnits = () => SECTORS.reduce((acc, sector) => ({ ...acc, [sector]: 0 }), {} as Record<Sector, number>)
 const createTradeLots = () => SECTORS.reduce((acc, sector) => ({ ...acc, [sector]: 1 }), {} as Record<Sector, number>)
@@ -20,6 +32,7 @@ export default function StockDisplay() {
   const [displayStepIndex, setDisplayStepIndex] = useState(0)
   const [turnDirection, setTurnDirection] = useState<'next' | 'prev'>('next')
   const [isTurning, setIsTurning] = useState(false)
+  const [showRules, setShowRules] = useState(true)
   const [cash, setCash] = useState(INITIAL_CAPITAL)
   const [holdingsUnits, setHoldingsUnits] = useState<Record<Sector, number>>(() => createEmptyUnits())
   const [tradeLots, setTradeLots] = useState<Record<Sector, number>>(() => createTradeLots())
@@ -306,8 +319,36 @@ export default function StockDisplay() {
                   >
                     下一页
                   </button>
+                  <button
+                    onClick={() => setShowRules((current) => !current)}
+                    className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-sm text-amber-100 transition hover:bg-amber-300/15"
+                  >
+                    {showRules ? '收起规则' : '查看规则'}
+                  </button>
                 </div>
               </div>
+
+              {showRules ? (
+                <div className="rounded-[24px] border border-amber-300/18 bg-amber-300/[0.08] p-4">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-semibold text-amber-50">当前游戏规则</h3>
+                      <p className="mt-1 text-sm text-amber-50/70">这份规则用于开场说明，也可以在游戏过程中随时查看。</p>
+                    </div>
+                    <div className="rounded-full border border-amber-200/20 bg-black/15 px-3 py-1 text-xs text-amber-100/80">
+                      10 条
+                    </div>
+                  </div>
+                  <div className="grid gap-3 xl:grid-cols-2">
+                    {GAME_RULES.map((rule, index) => (
+                      <div key={rule} className="rounded-2xl border border-white/8 bg-black/12 px-4 py-3">
+                        <div className="text-xs uppercase tracking-[0.24em] text-amber-100/55">规则 {index + 1}</div>
+                        <div className="mt-2 text-sm leading-6 text-slate-200/88">{rule}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
                 {QUARTERS.map((quarter, quarterIndex) => {
