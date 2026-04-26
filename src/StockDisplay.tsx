@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { QUARTERS } from './data/historicalNews'
+import { useEffect, useMemo, useState } from 'react'
+import { QUARTERS, SECTORS, type Sector } from './data/historicalNews'
 import {
   PRESENTATION_STEPS,
   QuarterNewsPage,
@@ -8,18 +8,153 @@ import {
   useQuarterSnapshot,
 } from './presentationContent'
 
+const INITIAL_CAPITAL = 1_000_000
+const TRADE_UNIT = 10_000
+
+const createEmptyUnits = () => SECTORS.reduce((acc, sector) => ({ ...acc, [sector]: 0 }), {} as Record<Sector, number>)
+const createTradeLots = () => SECTORS.reduce((acc, sector) => ({ ...acc, [sector]: 1 }), {} as Record<Sector, number>)
+
 export default function StockDisplay() {
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [currentWeek, setCurrentWeek] = useState(0)
   const [displayStepIndex, setDisplayStepIndex] = useState(0)
   const [turnDirection, setTurnDirection] = useState<'next' | 'prev'>('next')
   const [isTurning, setIsTurning] = useState(false)
+  const [cash, setCash] = useState(INITIAL_CAPITAL)
+  const [holdingsUnits, setHoldingsUnits] = useState<Record<Sector, number>>(() => createEmptyUnits())
+  const [tradeLots, setTradeLots] = useState<Record<Sector, number>>(() => createTradeLots())
+  const [recentTrades, setRecentTrades] = useState<
+    Array<{
+      action: 'buy' | 'sell'
+      amount: number
+      lots: number
+      price: number
+      quarterLabel: string
+      sector: Sector
+      week: number
+    }>
+  >([])
 
   const currentStep = PRESENTATION_STEPS[displayStepIndex]
   const currentQuarterIndex = currentStep.quarterIndex
   const currentPageType = currentStep.pageType
   const currentQuarter = QUARTERS[currentQuarterIndex]
   const snapshot = useQuarterSnapshot(currentQuarterIndex, currentWeek)
+
+  const holdingValues = useMemo(
+    () =>
+      SECTORS.reduce((acc, sector) => {
+        acc[sector] = Math.round(holdingsUnits[sector] * snapshot.prices[sector])
+        return acc
+      }, {} as Record<Sector, number>),
+    [holdingsUnits, snapshot.prices],
+  )
+
+  const investedValue = useMemo(
+    () => SECTORS.reduce((total, sector) => total + holdingValues[sector], 0),
+    [holdingValues],
+  )
+
+  const totalWealth = cash + investedValue
+  const totalPnL = totalWealth - INITIAL_CAPITAL
+
+  const setTradeLotsForSector = (sector: Sector, nextLots: number) => {
+    setTradeLots((current) => ({
+      ...current,
+      [sector]: Math.max(1, Math.floor(nextLots) || 1),
+    }))
+  }
+
+  const changeTradeLots = (sector: Sector, direction: 'decrease' | 'increase') => {
+    setTradeLots((current) => {
+      const delta = direction === 'increase' ? 1 : -1
+      const nextValue = Math.max(1, current[sector] + delta)
+      return { ...current, [sector]: nextValue }
+    })
+  }
+
+  const recordTrade = (trade: {
+    action: 'buy' | 'sell'
+    amount: number
+    lots: number
+    price: number
+    quarterLabel: string
+    sector: Sector
+    week: number
+  }) => {
+    setRecentTrades((current) => [trade, ...current].slice(0, 8))
+  }
+
+  const executeTrade = (sector: Sector, action: 'buy' | 'sell', lots: number) => {
+    const normalizedLots = Math.max(1, Math.floor(lots))
+    const amount = normalizedLots * TRADE_UNIT
+    const price = snapshot.prices[sector]
+    if (price <= 0) {
+      return
+    }
+
+    if (action === 'buy') {
+      if (cash < amount) {
+        return
+      }
+
+      const units = amount / price
+      setCash((current) => current - amount)
+      setHoldingsUnits((current) => ({
+        ...current,
+        [sector]: current[sector] + units,
+      }))
+    } else {
+      const holdingValue = holdingsUnits[sector] * price
+      if (holdingValue < amount) {
+        return
+      }
+
+      const units = amount / price
+      setCash((current) => current + amount)
+      setHoldingsUnits((current) => ({
+        ...current,
+        [sector]: Math.max(0, current[sector] - units),
+      }))
+    }
+
+    recordTrade({
+      action,
+      amount,
+      lots: normalizedLots,
+      price,
+      quarterLabel: currentQuarter.label,
+      sector,
+      week: currentWeek,
+    })
+  }
+
+  const buySector = (sector: Sector) => {
+    executeTrade(sector, 'buy', tradeLots[sector])
+  }
+
+  const sellSector = (sector: Sector) => {
+    executeTrade(sector, 'sell', tradeLots[sector])
+  }
+
+  const quickTrade = (sector: Sector, action: 'buy' | 'sell', ratio: 0.5 | 1) => {
+    const availableAmount =
+      action === 'buy' ? cash : Math.floor((holdingsUnits[sector] * snapshot.prices[sector]) / TRADE_UNIT) * TRADE_UNIT
+    const lots = Math.floor((availableAmount * ratio) / TRADE_UNIT)
+
+    if (lots < 1) {
+      return
+    }
+
+    executeTrade(sector, action, lots)
+  }
+
+  const resetGame = () => {
+    setCash(INITIAL_CAPITAL)
+    setHoldingsUnits(createEmptyUnits())
+    setTradeLots(createTradeLots())
+    setRecentTrades([])
+  }
 
   const goToStep = (nextStepIndex: number) => {
     if (isTurning) {
@@ -119,7 +254,7 @@ export default function StockDisplay() {
                 </p>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[520px]">
+              <div className="grid gap-3 sm:grid-cols-2 xl:min-w-[760px] xl:grid-cols-5">
                 <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/10 px-4 py-3">
                   <div className="text-[11px] uppercase tracking-[0.28em] text-cyan-100/60">当前季度</div>
                   <div className="mt-2 text-xl font-semibold text-cyan-100">{currentQuarter.label}</div>
@@ -136,6 +271,18 @@ export default function StockDisplay() {
                     {currentStepIndex + 1} / {PRESENTATION_STEPS.length}
                   </div>
                   <div className="text-xs text-slate-300/60">新闻页 / 股票页 循环播放结构</div>
+                </div>
+                <div className="rounded-2xl border border-emerald-400/20 bg-emerald-400/10 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-emerald-100/60">实时总资产</div>
+                  <div className="mt-2 text-xl font-semibold text-emerald-100">¥{totalWealth.toLocaleString('zh-CN')}</div>
+                  <div className={`text-xs ${totalPnL >= 0 ? 'text-emerald-200/80' : 'text-rose-200/80'}`}>
+                    {totalPnL >= 0 ? '+' : ''}¥{totalPnL.toLocaleString('zh-CN')}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">现金 / 持仓</div>
+                  <div className="mt-2 text-lg font-semibold text-white">¥{cash.toLocaleString('zh-CN')}</div>
+                  <div className="text-xs text-slate-300/60">持仓市值 ¥{investedValue.toLocaleString('zh-CN')}</div>
                 </div>
               </div>
             </div>
@@ -214,6 +361,22 @@ export default function StockDisplay() {
         </header>
 
         <div className="perspective-[2200px] relative">
+          {currentPageType === 'news' ? (
+            <div className="mb-4 flex flex-col gap-3 rounded-[24px] border border-emerald-400/20 bg-emerald-400/10 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="text-sm font-semibold text-emerald-100">模拟交易入口在股票页</div>
+                  <div className="mt-1 text-sm text-emerald-100/80">
+                    当前资金 ¥{cash.toLocaleString('zh-CN')}，总资产 ¥{totalWealth.toLocaleString('zh-CN')}。翻到下一页即可按手交易，1 手 = 10,000 元。
+                  </div>
+                </div>
+              <button
+                onClick={() => goToStep(currentStepIndex + 1)}
+                className="rounded-xl border border-emerald-300/30 bg-emerald-300/15 px-4 py-2 text-sm text-emerald-50 transition hover:bg-emerald-300/20"
+              >
+                进入本季度交易页
+              </button>
+            </div>
+          ) : null}
           <div className={`page-shell ${isTurning ? `page-shell--turning page-shell--${turnDirection}` : ''}`}>
             {currentPageType === 'news' ? (
               <QuarterNewsPage currentQuarter={snapshot.currentQuarter} currentWeek={currentWeek} />
@@ -223,7 +386,22 @@ export default function StockDisplay() {
                 currentQuarter={snapshot.currentQuarter}
                 currentWeek={currentWeek}
                 dayChange={snapshot.dayChange}
+                gameState={{
+                  cash,
+                  holdingValues,
+                  holdingsUnits,
+                  recentTrades,
+                  totalPnL,
+                  totalWealth,
+                  tradeLots,
+                }}
+                onQuickTrade={quickTrade}
                 maxPrice={snapshot.maxPrice}
+                onBuySector={buySector}
+                onResetGame={resetGame}
+                onSellSector={sellSector}
+                onTradeLotChange={changeTradeLots}
+                onTradeLotSet={setTradeLotsForSector}
                 prices={snapshot.prices}
                 roundWinners={snapshot.roundWinners}
                 weeklyChange={snapshot.weeklyChange}

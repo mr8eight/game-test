@@ -37,6 +37,29 @@ export interface QuarterStocksPageProps {
   prices: Record<Sector, number>
   roundWinners: Sector[]
   weeklyChange: Record<Sector, number>
+  gameState?: {
+    cash: number
+    holdingValues: Record<Sector, number>
+    holdingsUnits: Record<Sector, number>
+    recentTrades: Array<{
+      action: 'buy' | 'sell'
+      amount: number
+      lots: number
+      price: number
+      quarterLabel: string
+      sector: Sector
+      week: number
+    }>
+    totalWealth: number
+    totalPnL: number
+    tradeLots: Record<Sector, number>
+  }
+  onBuySector?: (sector: Sector) => void
+  onQuickTrade?: (sector: Sector, action: 'buy' | 'sell', ratio: 0.5 | 1) => void
+  onSellSector?: (sector: Sector) => void
+  onTradeLotChange?: (sector: Sector, direction: 'decrease' | 'increase') => void
+  onTradeLotSet?: (sector: Sector, lots: number) => void
+  onResetGame?: () => void
 }
 
 export interface QuarterSnapshot {
@@ -399,7 +422,14 @@ export function QuarterStocksPage({
   currentQuarter,
   currentWeek,
   dayChange,
+  gameState,
   maxPrice,
+  onBuySector,
+  onQuickTrade,
+  onResetGame,
+  onSellSector,
+  onTradeLotChange,
+  onTradeLotSet,
   prices,
   roundWinners,
   weeklyChange,
@@ -678,6 +708,208 @@ export function QuarterStocksPage({
         </div>
 
         <div className="space-y-5">
+          {gameState && onBuySector && onSellSector && onTradeLotChange && onTradeLotSet && onResetGame ? (
+            <div className="rounded-[28px] border border-cyan-300/20 bg-cyan-300/8 p-5">
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">模拟交易</h3>
+                  <p className="mt-1 text-sm text-cyan-100/75">初始资金 1,000,000，按手交易，1 手 = 10,000 元，支持自定义输入手数和半仓/全仓快捷操作。</p>
+                </div>
+                <button
+                  onClick={onResetGame}
+                  className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/85 transition hover:bg-white/10"
+                >
+                  重置资金
+                </button>
+              </div>
+
+              <div className="mb-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">总资产</div>
+                  <div className="mt-2 text-xl font-semibold text-white">¥{gameState.totalWealth.toLocaleString('zh-CN')}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">现金</div>
+                  <div className="mt-2 text-xl font-semibold text-cyan-100">¥{gameState.cash.toLocaleString('zh-CN')}</div>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
+                  <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">累计盈亏</div>
+                  <div className={`mt-2 text-xl font-semibold ${gameState.totalPnL >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                    {gameState.totalPnL >= 0 ? '+' : ''}¥{gameState.totalPnL.toLocaleString('zh-CN')}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {SECTORS.map((sector) => {
+                  const tradeLots = gameState.tradeLots[sector]
+                  const tradeAmount = tradeLots * 10_000
+                  const holdingValue = gameState.holdingValues[sector]
+                  const canBuy = gameState.cash >= tradeAmount
+                  const canSell = holdingValue >= tradeAmount
+                  const maxBuyLots = Math.floor(gameState.cash / 10_000)
+                  const maxSellLots = Math.floor(holdingValue / 10_000)
+
+                  return (
+                    <div key={sector} className="rounded-2xl border border-white/8 bg-black/12 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{sector.split(' ')[1]}</span>
+                            <span className="text-sm text-white/88">{SECTOR_NAMES[sector]}</span>
+                          </div>
+                          <div className="mt-1 text-xs text-slate-300/60">
+                            持仓市值 ¥{holdingValue.toLocaleString('zh-CN')} · 持有份额 {gameState.holdingsUnits[sector].toFixed(2)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-lg font-semibold" style={{ color: SECTOR_COLORS[sector] }}>
+                            当前点位 {prices[sector]}
+                          </div>
+                          <div className={`text-xs ${weeklyChange[sector] >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>
+                            本季 {weeklyChange[sector] >= 0 ? '+' : ''}
+                            {weeklyChange[sector].toFixed(2)}%
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => onTradeLotChange(sector, 'decrease')}
+                          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10"
+                        >
+                          -1手
+                        </button>
+                        <label className="flex min-w-[172px] items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-sm text-white">
+                          <span className="text-slate-300/70">手数</span>
+                          <input
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={tradeLots}
+                            onChange={(event) => {
+                              const nextValue = Number.parseInt(event.target.value, 10)
+                              onTradeLotSet(sector, Number.isNaN(nextValue) ? 1 : nextValue)
+                            }}
+                            className="w-16 bg-transparent text-right text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          />
+                        </label>
+                        <div className="min-w-[132px] rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-center text-sm text-white">
+                          ¥{tradeAmount.toLocaleString('zh-CN')}
+                        </div>
+                        <button
+                          onClick={() => onTradeLotChange(sector, 'increase')}
+                          className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/80 transition hover:bg-white/10"
+                        >
+                          +1手
+                        </button>
+                        <button
+                          onClick={() => onBuySector(sector)}
+                          disabled={!canBuy}
+                          className={`rounded-lg px-4 py-2 text-sm transition ${
+                            canBuy
+                              ? 'border border-emerald-300/25 bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/20'
+                              : 'cursor-not-allowed border border-white/8 bg-white/[0.03] text-slate-500'
+                          }`}
+                        >
+                          买入
+                        </button>
+                        <button
+                          onClick={() => onSellSector(sector)}
+                          disabled={!canSell}
+                          className={`rounded-lg px-4 py-2 text-sm transition ${
+                            canSell
+                              ? 'border border-rose-300/25 bg-rose-300/15 text-rose-100 hover:bg-rose-300/20'
+                              : 'cursor-not-allowed border border-white/8 bg-white/[0.03] text-slate-500'
+                          }`}
+                        >
+                          卖出
+                        </button>
+                        {onQuickTrade ? (
+                          <>
+                            <button
+                              onClick={() => onQuickTrade(sector, 'buy', 0.5)}
+                              disabled={maxBuyLots < 1}
+                              className={`rounded-lg px-3 py-2 text-sm transition ${
+                                maxBuyLots >= 1
+                                  ? 'border border-cyan-300/25 bg-cyan-300/12 text-cyan-100 hover:bg-cyan-300/18'
+                                  : 'cursor-not-allowed border border-white/8 bg-white/[0.03] text-slate-500'
+                              }`}
+                            >
+                              半仓买
+                            </button>
+                            <button
+                              onClick={() => onQuickTrade(sector, 'buy', 1)}
+                              disabled={maxBuyLots < 1}
+                              className={`rounded-lg px-3 py-2 text-sm transition ${
+                                maxBuyLots >= 1
+                                  ? 'border border-cyan-300/25 bg-cyan-300/12 text-cyan-100 hover:bg-cyan-300/18'
+                                  : 'cursor-not-allowed border border-white/8 bg-white/[0.03] text-slate-500'
+                              }`}
+                            >
+                              全仓买
+                            </button>
+                            <button
+                              onClick={() => onQuickTrade(sector, 'sell', 0.5)}
+                              disabled={maxSellLots < 1}
+                              className={`rounded-lg px-3 py-2 text-sm transition ${
+                                maxSellLots >= 1
+                                  ? 'border border-amber-300/25 bg-amber-300/12 text-amber-100 hover:bg-amber-300/18'
+                                  : 'cursor-not-allowed border border-white/8 bg-white/[0.03] text-slate-500'
+                              }`}
+                            >
+                              半仓卖
+                            </button>
+                            <button
+                              onClick={() => onQuickTrade(sector, 'sell', 1)}
+                              disabled={maxSellLots < 1}
+                              className={`rounded-lg px-3 py-2 text-sm transition ${
+                                maxSellLots >= 1
+                                  ? 'border border-amber-300/25 bg-amber-300/12 text-amber-100 hover:bg-amber-300/18'
+                                  : 'cursor-not-allowed border border-white/8 bg-white/[0.03] text-slate-500'
+                              }`}
+                            >
+                              全仓卖
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 text-xs text-slate-300/58">
+                        当前可买 {maxBuyLots} 手，可卖 {maxSellLots} 手。
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="mt-4 rounded-2xl border border-white/8 bg-black/12 p-4">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-white">最近操作</h4>
+                  <span className="text-xs text-slate-300/55">按当前季度与周记录</span>
+                </div>
+                <div className="space-y-2">
+                  {gameState.recentTrades.length === 0 ? (
+                    <div className="text-sm text-slate-300/60">还没有交易记录。</div>
+                  ) : (
+                    gameState.recentTrades.map((trade, index) => (
+                      <div key={`${trade.sector}-${trade.quarterLabel}-${trade.week}-${index}`} className="flex items-center justify-between rounded-xl border border-white/8 bg-white/[0.03] px-3 py-2 text-sm">
+                        <div className="text-slate-200/85">
+                          {trade.quarterLabel} W{trade.week + 1} · {SECTOR_NAMES[trade.sector]} · {trade.action === 'buy' ? '买入' : '卖出'}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-white">
+                            {trade.lots} 手 · ¥{trade.amount.toLocaleString('zh-CN')}
+                          </div>
+                          <div className="text-xs text-slate-300/55">@ {trade.price}</div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-[28px] border border-white/10 bg-black/12 p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-white">当前点位</h3>
