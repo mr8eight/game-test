@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateX(20px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.page-enter {
+  animation: pageEnter 320ms ease-out;
+}
+
+.page-shell {
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  will-change: transform, opacity, filter;
+}
+
+.page-shell--turning {
+  animation-duration: 620ms;
+  animation-timing-function: cubic-bezier(0.22, 0.7, 0.2, 1);
+  animation-fill-mode: both;
+}
+
+.page-shell--next {
+  animation-name: pageTurnNext;
+}
+
+.page-shell--prev {
+  animation-name: pageTurnPrev;
+}
+
+@keyframes pageTurnNext {
+  0% {
+    opacity: 1;
+    filter: brightness(1);
+    transform: perspective(2200px) rotateY(0deg) translateX(0);
+  }
+
+  48% {
+    opacity: 0.3;
+    filter: brightness(0.88);
+    transform: perspective(2200px) rotateY(-72deg) translateX(-36px);
+  }
+
+  52% {
+    opacity: 0.26;
+    filter: brightness(0.88);
+    transform: perspective(2200px) rotateY(72deg) translateX(36px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+    transform: perspective(2200px) rotateY(0deg) translateX(0);
+  }
+}
+
+@keyframes pageTurnPrev {
+  0% {
+    opacity: 1;
+    filter: brightness(1);
+    transform: perspective(2200px) rotateY(0deg) translateX(0);
+  }
+
+  48% {
+    opacity: 0.3;
+    filter: brightness(0.88);
+    transform: perspective(2200px) rotateY(72deg) translateX(36px);
+  }
+
+  52% {
+    opacity: 0.26;
+    filter: brightness(0.88);
+    transform: perspective(2200px) rotateY(-72deg) translateX(-36px);
+  }
+
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+    transform: perspective(2200px) rotateY(0deg) translateX(0);
+  }
+}
+
+body.reveal-viewport {
+  overflow: hidden;
+}
+
+.reveal.reveal-finance {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(34, 211, 238, 0.14), transparent 26%),
+    radial-gradient(circle at bottom right, rgba(244, 114, 182, 0.1), transparent 24%),
+    linear-gradient(180deg, #08101c, #07111f 38%, #050b16);
+  color: #fff;
+  font-family: inherit;
+}
+
+.reveal.reveal-finance::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.28) 1px, transparent 1px);
+  background-size: 42px 42px;
+}
+
+.reveal.reveal-finance .slides {
+  text-align: left;
+}
+
+.reveal.reveal-finance .slides section {
+  box-sizing: border-box;
+  height: 100%;
+}
+
+.reveal.reveal-finance .slides > section,
+.reveal.reveal-finance .slides > section > section {
+  padding: 0 !important;
+}
+
+.reveal.reveal-finance .controls,
+.reveal.reveal-finance .progress {
+  color: #22d3ee;
+}
+
+.reveal-stage {
+  width: 1600px;
+  height: 900px;
+  margin: 0 auto;
+  padding: 18px;
+  overflow: hidden;
+}
