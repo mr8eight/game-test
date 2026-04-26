@@ -232,6 +232,9 @@ function getChartDomain(chartData: Array<Record<string, number | string>>) {
   return [minValue, maxValue] as const
 }
 
+const NEUTRAL_NEWS_NOTE = '以下内容基于当季公开报道整理，仅描述当时行业状态，不预设后续走势。'
+const NEUTRAL_DATA_NOTE = '图表为项目内模拟走势数据，用于对比当前季度各板块的相对变化。'
+
 export function QuarterNewsPage({ compact = false, currentQuarter, currentWeek }: QuarterNewsPageProps) {
   if (compact) {
     return (
@@ -249,8 +252,8 @@ export function QuarterNewsPage({ compact = false, currentQuarter, currentWeek }
               <div className="text-xs text-cyan-100/70">{currentQuarter.period}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300/55">主线提示</div>
-              <div className="mt-1 text-xs leading-5 text-white/82">{trimText(currentQuarter.decisionHint, 48)}</div>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300/55">信息说明</div>
+              <div className="mt-1 text-xs leading-5 text-white/82">{trimText(NEUTRAL_NEWS_NOTE, 48)}</div>
             </div>
           </div>
         </div>
@@ -287,10 +290,6 @@ export function QuarterNewsPage({ compact = false, currentQuarter, currentWeek }
 
                 <div className="space-y-3 text-xs leading-6 text-slate-200/82">
                   <p>{trimText(sectorNews.summary, 78)}</p>
-                  <div className="rounded-2xl border border-white/10 bg-black/12 p-3">
-                    <div className="mb-1 text-[10px] uppercase tracking-[0.24em] text-cyan-200/60">市场影响</div>
-                    <p>{trimText(sectorNews.impact, 58)}</p>
-                  </div>
                 </div>
 
                 <div className="mt-auto flex items-end justify-between gap-3 border-t border-white/10 pt-3">
@@ -332,8 +331,8 @@ export function QuarterNewsPage({ compact = false, currentQuarter, currentWeek }
             <div className="text-xs text-cyan-100/70">{currentQuarter.period}</div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
-            <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">主线提示</div>
-            <div className="mt-2 text-sm leading-6 text-white/85">{currentQuarter.decisionHint}</div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">信息说明</div>
+            <div className="mt-2 text-sm leading-6 text-white/85">{NEUTRAL_NEWS_NOTE}</div>
           </div>
         </div>
       </div>
@@ -370,10 +369,6 @@ export function QuarterNewsPage({ compact = false, currentQuarter, currentWeek }
 
               <div className="space-y-4 text-sm leading-7 text-slate-200/82">
                 <p>{sectorNews.summary}</p>
-                <div className="rounded-2xl border border-white/10 bg-black/12 p-4">
-                  <div className="mb-2 text-[11px] uppercase tracking-[0.24em] text-cyan-200/60">市场影响</div>
-                  <p>{sectorNews.impact}</p>
-                </div>
               </div>
 
               <div className="mt-auto flex items-center justify-between gap-4 border-t border-white/10 pt-4">
@@ -418,7 +413,7 @@ export function QuarterStocksPage({
           <div className="max-w-4xl">
             <div className="text-[10px] uppercase tracking-[0.35em] text-cyan-200/65">Quarter Stock Page</div>
             <h2 className="mt-2 text-[1.7rem] font-semibold tracking-tight text-white">{currentQuarter.label} · 板块走势与关键数据</h2>
-            <p className="mt-1.5 text-[13px] leading-5 text-slate-300/78">{trimText(currentQuarter.decisionHint, 78)}</p>
+            <p className="mt-1.5 text-[13px] leading-5 text-slate-300/78">{trimText(currentQuarter.marketPulse, 78)}</p>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
@@ -432,12 +427,8 @@ export function QuarterStocksPage({
               <div className="text-[11px] text-cyan-100/70">Reveal 固定展示</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
-              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300/55">领先板块</div>
-              <div className="mt-1 text-base font-semibold text-white">{SECTOR_NAMES[roundWinners[0]]}</div>
-              <div className="text-[11px] text-emerald-300">
-                {weeklyChange[roundWinners[0]] >= 0 ? '+' : ''}
-                {weeklyChange[roundWinners[0]].toFixed(2)}%
-              </div>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-slate-300/55">数据说明</div>
+              <div className="mt-1 text-[11px] leading-5 text-white/80">{trimText(NEUTRAL_DATA_NOTE, 30)}</div>
             </div>
           </div>
         </div>
@@ -543,7 +534,7 @@ export function QuarterStocksPage({
                           ? '--'
                           : `${dayChange[sector]! >= 0 ? '+' : ''}${dayChange[sector]!.toFixed(2)}%`}
                       </span>
-                      <span className="truncate">{trimText(currentQuarter.sectors[sector].headline, 10)}</span>
+                      <span>{currentQuarter.period}</span>
                     </div>
                   </div>
                 ))}
@@ -552,8 +543,8 @@ export function QuarterStocksPage({
 
             <div className="rounded-[24px] border border-white/10 bg-black/12 p-4">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-base font-semibold text-white">领先板块 Top 3</h3>
-                <span className="text-[10px] uppercase tracking-[0.28em] text-slate-300/55">Winners</span>
+                <h3 className="text-base font-semibold text-white">当前相对强势 Top 3</h3>
+                <span className="text-[10px] uppercase tracking-[0.28em] text-slate-300/55">Relative Strength</span>
               </div>
               <div className="space-y-2">
                 {roundWinners.map((sector, index) => (
@@ -564,7 +555,7 @@ export function QuarterStocksPage({
                       </div>
                       <div>
                         <div className="text-xs text-white/92">{SECTOR_NAMES[sector]}</div>
-                        <div className="text-[10px] text-slate-300/60">{trimText(currentQuarter.sectors[sector].headline, 18)}</div>
+                        <div className="text-[10px] text-slate-300/60">{currentQuarter.period}</div>
                       </div>
                     </div>
                     <div className="text-right">
@@ -595,7 +586,7 @@ export function QuarterStocksPage({
             {currentQuarter.label} · 板块走势与关键数据
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-300/80 sm:text-base">
-            当前处于第 {currentWeek + 1} 周，图表展示最近 39 周的模拟价格路径，数字区用于快速判断本季强弱和领涨板块。
+            当前处于第 {currentWeek + 1} 周，图表展示最近 39 周的模拟价格路径，用于对比各板块在当期的相对变化。
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -610,8 +601,8 @@ export function QuarterStocksPage({
             <div className="text-xs text-cyan-100/70">周内切换同步更新</div>
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/15 px-4 py-3">
-            <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">主线提示</div>
-            <div className="mt-2 text-sm leading-6 text-white/85">{currentQuarter.decisionHint}</div>
+            <div className="text-[11px] uppercase tracking-[0.28em] text-slate-300/55">数据说明</div>
+            <div className="mt-2 text-sm leading-6 text-white/85">{NEUTRAL_DATA_NOTE}</div>
           </div>
         </div>
       </div>
@@ -760,7 +751,7 @@ export function QuarterStocksPage({
 
           <div className="rounded-[28px] border border-white/10 bg-black/12 p-5">
             <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-white">领先板块</h3>
+              <h3 className="text-lg font-semibold text-white">当前相对强势</h3>
               <span className="text-xs uppercase tracking-[0.28em] text-slate-300/55">Top 3</span>
             </div>
             <div className="space-y-3">
@@ -772,7 +763,7 @@ export function QuarterStocksPage({
                     </div>
                     <div>
                       <div className="text-sm text-white/92">{SECTOR_NAMES[sector]}</div>
-                      <div className="text-xs text-slate-300/60">{currentQuarter.sectors[sector].headline}</div>
+                      <div className="text-xs text-slate-300/60">{currentQuarter.period}</div>
                     </div>
                   </div>
                   <div className="text-right">
